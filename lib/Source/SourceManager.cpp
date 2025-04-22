@@ -1,14 +1,32 @@
+/**
+ * @file SourceManager.cpp
+ * @brief Implementation of the SourceManager class.
+ *
+ * This file contains the implementation of the SourceManager class, which
+ * provides functionality for managing source buffers and working with source locations.
+ */
+
 #include "swift/Source/SourceManager.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/MemoryBuffer.h"
 
 using namespace swift;
 
+/**
+ * Default constructor for SourceManager.
+ * Initializes the file system to use the real file system.
+ */
 SourceManager::SourceManager() {
     // Use the current directory as the working directory.
     FileSystem = llvm::vfs::getRealFileSystem();
 }
 
+/**
+ * Adds a new source buffer to the SourceManager.
+ * 
+ * @param Buffer The memory buffer to add
+ * @return The buffer ID for the added buffer
+ */
 unsigned SourceManager::addNewSourceBuffer(std::unique_ptr<llvm::MemoryBuffer> Buffer) {
   const llvm::StringRef BufferIdentifier = Buffer->getBufferIdentifier();
 
@@ -27,6 +45,13 @@ unsigned SourceManager::addNewSourceBuffer(std::unique_ptr<llvm::MemoryBuffer> B
   return BufferID;
 }
 
+/**
+ * Returns a buffer ID for the specified file path.
+ * If the buffer is not already added, it gets added.
+ * 
+ * @param FilePath Path to the file
+ * @return Buffer ID if successful, ~0U otherwise
+ */
 unsigned SourceManager::getOrOpenBuffer(llvm::StringRef FilePath) {
   // Check if we already have this buffer.
   if (const auto ExistingBuffer = getIDForBufferIdentifier(FilePath); ExistingBuffer.has_value()) {
@@ -43,6 +68,12 @@ unsigned SourceManager::getOrOpenBuffer(llvm::StringRef FilePath) {
   return addNewSourceBuffer(std::move(*FileOrErr));
 }
 
+/**
+ * Returns the buffer ID for an existing buffer if it exists.
+ * 
+ * @param BufferIdentifier The identifier for the buffer
+ * @return Optional buffer ID, empty if buffer doesn't exist
+ */
 std::optional<unsigned> SourceManager::getIDForBufferIdentifier(llvm::StringRef BufferIdentifier) {
   if (const auto It = BufIdentIDMap.find(BufferIdentifier); It != BufIdentIDMap.end()) {
     return It->second;
@@ -50,15 +81,33 @@ std::optional<unsigned> SourceManager::getIDForBufferIdentifier(llvm::StringRef 
   return std::nullopt;
 }
 
+/**
+ * Returns the memory buffer for the provided buffer ID.
+ * 
+ * @param BufferID ID of the buffer to retrieve
+ * @return Pointer to the memory buffer
+ */
 const llvm::MemoryBuffer *SourceManager::getMemoryBuffer(unsigned BufferID) const {
   return LLVMSourceMgr.getMemoryBuffer(BufferID);
 }
 
+/**
+ * Returns the source location for the beginning of the specified buffer.
+ * 
+ * @param BufferID ID of the buffer
+ * @return Source location for the buffer's start
+ */
 SourceLocation SourceManager::getLocForBufferStart(unsigned BufferID) const {
   return SourceLocation(llvm::SMLoc::getFromPointer(
       LLVMSourceMgr.getMemoryBuffer(BufferID)->getBufferStart()));
 }
 
+/**
+ * Returns the source buffer ID for the given location.
+ * 
+ * @param Loc Source location to find buffer for
+ * @return ID of the buffer containing the location
+ */
 unsigned SourceManager::findBufferContainingLoc(SourceLocation Loc) const {
   assert(Loc.isValid() && "location should be valid");
 
@@ -73,6 +122,13 @@ unsigned SourceManager::findBufferContainingLoc(SourceLocation Loc) const {
   llvm_unreachable("Location not in any buffer");
 }
 
+/**
+ * Returns the offset in bytes for the given source location within the specified buffer.
+ * 
+ * @param Loc Source location to get offset for
+ * @param BufferID ID of the buffer containing the location
+ * @return Offset in bytes from buffer start
+ */
 unsigned SourceManager::getLocOffsetInBuffer(SourceLocation Loc, unsigned BufferID) const {
   assert(Loc.isValid() && "location should be valid");
   const auto BufferStart = getLocForBufferStart(BufferID);
@@ -85,6 +141,13 @@ unsigned SourceManager::getLocOffsetInBuffer(SourceLocation Loc, unsigned Buffer
   return Loc.Value.getPointer() - BufferStart.Value.getPointer();
 }
 
+/**
+ * Returns the distance in bytes between the given source locations.
+ * 
+ * @param Start Starting source location
+ * @param End Ending source location
+ * @return Distance in bytes between locations
+ */
 unsigned SourceManager::getByteDistance(SourceLocation Start, SourceLocation End) const {
   assert(Start.isValid() && End.isValid() && "locations should be valid");
 
@@ -118,6 +181,12 @@ unsigned SourceManager::getByteDistance(SourceLocation Start, SourceLocation End
   return Distance;
 }
 
+/**
+ * Returns a buffer identifier suitable for display to the user.
+ * 
+ * @param Loc Source location to get display name for
+ * @return Display name as a StringRef
+ */
 llvm::StringRef SourceManager::getDisplayNameForLoc(SourceLocation Loc) const {
   if (Loc.isInvalid())
     return "<invalid loc>";
@@ -126,6 +195,13 @@ llvm::StringRef SourceManager::getDisplayNameForLoc(SourceLocation Loc) const {
   return getMemoryBuffer(BufferID)->getBufferIdentifier();
 }
 
+/**
+ * Returns true if range contains the location.
+ * 
+ * @param Range Source range to check
+ * @param Loc Location to check for containment
+ * @return True if the range contains the location
+ */
 bool SourceManager::containsLoc(SourceRange Range, SourceLocation Loc) const {
   assert(Range.isValid() && "Range should be valid");
   assert(Loc.isValid() && "Location should be valid");
@@ -139,6 +215,12 @@ bool SourceManager::containsLoc(SourceRange Range, SourceLocation Loc) const {
          Loc.Value.getPointer() <= Range.End.Value.getPointer();
 }
 
+/**
+ * Extract the source text for a range.
+ * 
+ * @param Range Character source range to extract
+ * @return StringRef to the extracted text
+ */
 llvm::StringRef SourceManager::extractText(CharSourceRange Range) const {
   assert(Range.isValid() && "Range should be valid");
 
@@ -159,6 +241,12 @@ llvm::StringRef SourceManager::extractText(CharSourceRange Range) const {
   return Buffer.substr(StartOffset, EndOffset - StartOffset);
 }
 
+/**
+ * Returns the source range for the entire buffer.
+ * 
+ * @param BufferID ID of the buffer
+ * @return Character source range for the entire buffer
+ */
 CharSourceRange SourceManager::getRangeForBuffer(unsigned BufferID) const {
   assert(BufferID != ~0U && "Invalid buffer ID");
 

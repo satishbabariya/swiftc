@@ -106,20 +106,23 @@ SourceLocation SourceManager::getLocForBufferStart(unsigned BufferID) const {
  * Returns the source buffer ID for the given location.
  * 
  * @param Loc Source location to find buffer for
- * @return ID of the buffer containing the location
+ * @return ID of the buffer containing the location, or ~0U if not found
  */
 unsigned SourceManager::findBufferContainingLoc(SourceLocation Loc) const {
-  assert(Loc.isValid() && "location should be valid");
+  if (!Loc.isValid())
+    return ~0U;
 
   // Search through all the buffers to find which one contains this location.
   for (unsigned i = 1, e = LLVMSourceMgr.getNumBuffers() + 1; i != e; ++i) {
     if (auto *Buffer = LLVMSourceMgr.getMemoryBuffer(i); Buffer->getBufferStart() <= Loc.Value.getPointer() &&
-                                                         Loc.Value.getPointer() <= Buffer->getBufferEnd()) {
+                                                       Loc.Value.getPointer() <= Buffer->getBufferEnd()) {
       return i;
     }
   }
 
-  llvm_unreachable("Location not in any buffer");
+  // If no buffer contains this location, return an invalid buffer ID
+  // instead of triggering an assertion failure
+  return ~0U;
 }
 
 /**

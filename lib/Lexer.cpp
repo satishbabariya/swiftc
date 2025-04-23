@@ -1469,14 +1469,18 @@ unsigned Lexer::lexCharacter(const char *&CurPtr, char StopQuote,
       if (isPrintable(CurPtr[-1]) == 0)
         if (!(IsMultilineString && (CurPtr[-1] == '\t')))
           if (EmitDiagnostics)
-            diagnose(CharStart, diag::lex_unprintable_ascii_character);
+            // diagnose(CharStart, diag::lex_unprintable_ascii_character);
+              // "unprintable ASCII character found in source file"
+                DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CharStart),"unprintable ASCII character found in source file"));
       return CurPtr[-1];
     }
     --CurPtr;
     unsigned CharValue = validateUTF8CharacterAndAdvance(CurPtr, BufferEnd);
     if (CharValue != ~0U) return CharValue;
     if (EmitDiagnostics)
-      diagnose(CharStart, diag::lex_invalid_utf8);
+      // diagnose(CharStart, diag::lex_invalid_utf8);
+        DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CharStart),"invalid UTF-8"));
+
     return ~1U;
   }
   case '"':
@@ -1505,7 +1509,9 @@ unsigned Lexer::lexCharacter(const char *&CurPtr, char StopQuote,
   case 0:
     assert(CurPtr - 1 != BufferEnd && "Caller must handle EOF");
     if (EmitDiagnostics)
-      diagnose(CurPtr-1, diag::lex_nul_character);
+      // diagnose(CurPtr-1, diag::lex_nul_character);
+        DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CurPtr-1),"nul character embedded in source file"));
+
     return CurPtr[-1];
   case '\n':  // String literals cannot have \n or \r in them.
   case '\r':
@@ -1527,7 +1533,8 @@ unsigned Lexer::lexCharacter(const char *&CurPtr, char StopQuote,
     LLVM_FALLTHROUGH;
   default:  // Invalid escape.
     if (EmitDiagnostics)
-      diagnose(CurPtr, diag::lex_invalid_escape);
+      DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CurPtr-1),"invalid escape sequence in literal"));
+      // diagnose(CurPtr, diag::lex_invalid_escape);
     // If this looks like a plausible escape character, recover as though this
     // is an invalid escape.
     if (isAlphanumeric(*CurPtr)) ++CurPtr;
@@ -1546,7 +1553,9 @@ unsigned Lexer::lexCharacter(const char *&CurPtr, char StopQuote,
     ++CurPtr;
     if (*CurPtr != '{') {
       if (EmitDiagnostics)
-        diagnose(CurPtr-1, diag::lex_unicode_escape_braces);
+        DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CurPtr-1),"unicode escape sequence expects between 1 and 8 hex digits"));
+
+        // diagnose(CurPtr-1, diag::lex_unicode_escape_braces);
       return ~1U;
     }
 
@@ -1560,7 +1569,9 @@ unsigned Lexer::lexCharacter(const char *&CurPtr, char StopQuote,
   llvm::SmallString<64> TempString;
   if (CharValue >= 0x80 && EncodeToUTF8(CharValue, TempString)) {
     if (EmitDiagnostics)
-      diagnose(CharStart, diag::lex_invalid_unicode_scalar);
+      // diagnose(CharStart, diag::lex_invalid_unicode_scalar);
+        DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CurPtr-1),"invalid unicode scalar value"));
+
     return ~1U;
   }
 
@@ -1776,11 +1787,12 @@ getMultilineTrailingIndent(llvm::StringRef Bytes, DiagnosticEngine *Diags = null
         auto *LineEnd = Ptr + 1;
         while (Ptr > begin && (*Ptr == ' ' || *Ptr == '\t')) --Ptr;
         if (*Ptr == '\\') {
-          auto escapeLoc = Lexer::getSourceLoc(Ptr);
+          auto escapeLoc = Lexer::getSourceLocation(Ptr);
           bool invalid = true;
           while (*--Ptr == '\\') invalid = !invalid;
           if (invalid)
-            Diags->diagnose(escapeLoc, diag::lex_escaped_newline_at_lastline);
+            Diags->error(escapeLoc,  "escaped newline at end of file");
+            // Diags->diagnose(escapeLoc, diag::lex_escaped_newline_at_lastline);
               // .fixItRemoveChars(escapeLoc, Lexer::getSourceLoc(LineEnd));
         }
       }
@@ -1793,10 +1805,11 @@ getMultilineTrailingIndent(llvm::StringRef Bytes, DiagnosticEngine *Diags = null
   }
 
   if (sawNonWhitespace && Diags) {
-    auto loc = Lexer::getSourceLoc(start + 1);
-    Diags->diagnose(loc, diag::lex_illegal_multiline_string_end);
+    auto loc = Lexer::getSourceLocation(start + 1);
+    // Diags->diagnose(loc, diag::lex_illegal_multiline_string_end);
     // FIXME: Should try to suggest indentation.
       // .fixItInsert(loc, "\n");
+    Diags->error(loc,  "illegal end of multiline string");
   }
 
   return "";
@@ -1809,7 +1822,7 @@ getMultilineTrailingIndent(llvm::StringRef Bytes, DiagnosticEngine *Diags = null
 static void diagnoseInvalidMultilineIndents(
                                             DiagnosticEngine *Diags,
                                             llvm::StringRef ExpectedIndent,
-                                            SourceLoc IndentLoc,
+                                            SourceLocation IndentLoc,
                                             llvm::StringRef Bytes,
                                             llvm::SmallVector<size_t, 4> LineStarts,
                                             size_t MistakeOffset,
@@ -1821,8 +1834,8 @@ static void diagnoseInvalidMultilineIndents(
 
   assert(!LineStarts.empty());
 
-  auto getLoc = [&](size_t offset) -> SourceLoc {
-    return Lexer::getSourceLoc((const char *)Bytes.bytes_begin() + offset);
+  auto getLoc = [&](size_t offset) -> SourceLocation {
+    return Lexer::getSourceLocation((const char *)Bytes.bytes_begin() + offset);
   };
   auto classify = [&](unsigned char ch) -> unsigned {
     switch (ch) {
@@ -1835,6 +1848,10 @@ static void diagnoseInvalidMultilineIndents(
     }
   };
 
+  Diags->error(getLoc(LineStarts[0] + MistakeOffset),"multiline string indentation inconsistent");
+  Diags->error(IndentLoc.getAdvancedLoc(MistakeOffset),
+        "multiline string indentation should match here");
+  Diags->error(getLoc(LineStarts[0] + MistakeOffset), "multiline string indentation change line");
   // Diags->diagnose(getLoc(LineStarts[0] + MistakeOffset),
   //                 diag::lex_multiline_string_indent_inconsistent,
   //                 LineStarts.size() != 1, LineStarts.size(),
@@ -1869,7 +1886,7 @@ static void validateMultilineIndents(const Token &Str,
     getMultilineTrailingIndent(Bytes, Diags, Str.getCustomDelimiterLen());
   if (Indent.empty())
     return;
-  SourceLoc IndentStartLoc = Lexer::getSourceLoc(Indent.data());
+  SourceLocation IndentStartLoc = Lexer::getSourceLocation(Indent.data());
 
   // The offset into the previous line where it experienced its first indentation
   // error, or Indent.size() if every character matched.
@@ -1931,8 +1948,8 @@ void Lexer::diagnoseSingleQuoteStringLiteral(const char *TokStart,
   if (!getTokenDiags()) // or assert?
     return;
 
-  auto startLoc = Lexer::getSourceLoc(TokStart);
-  auto endLoc = Lexer::getSourceLoc(TokEnd);
+  auto startLoc = Lexer::getSourceLocation(TokStart);
+  auto endLoc = Lexer::getSourceLocation(TokEnd);
 
   llvm::SmallString<32> replacement;
   replacement.push_back('"');
@@ -1971,8 +1988,9 @@ void Lexer::diagnoseSingleQuoteStringLiteral(const char *TokStart,
   replacement.append(OutputPtr, Ptr - 1);
   replacement.push_back('"');
 
-  getTokenDiags()->diagnose(startLoc, diag::lex_single_quote_string);
+  // getTokenDiags()->diagnose(startLoc, diag::lex_single_quote_string);
       // .fixItReplaceChars(startLoc, endLoc, replacement);
+  getTokenDiags()->error(startLoc, "single-quote string literal");
 }
 
 /// lexStringLiteral:
@@ -1990,8 +2008,9 @@ void Lexer::lexStringLiteral(unsigned CustomDelimiterLen) {
   bool IsMultilineString = advanceIfMultilineDelimiter(
       CustomDelimiterLen, CurPtr, getTokenDiags(), true);
   if (IsMultilineString && *CurPtr != '\n' && *CurPtr != '\r')
-    diagnose(CurPtr, diag::lex_illegal_multiline_string_start)
-        .fixItInsert(Lexer::getSourceLoc(CurPtr), "\n");
+    // diagnose(CurPtr, diag::lex_illegal_multiline_string_start)
+    //     .fixItInsert(Lexer::getSourceLoc(CurPtr), "\n");
+      DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,Lexer::getSourceLocation(CurPtr), "illegal start of multiline string"));
 
   bool wasErroneous = false;
   while (true) {
@@ -2009,20 +2028,26 @@ void Lexer::lexStringLiteral(unsigned CustomDelimiterLen) {
         continue;
       } else {
         if ((*CurPtr == '\r' || *CurPtr == '\n') && IsMultilineString) {
-          diagnose(--TmpPtr, diag::string_interpolation_unclosed);
+          // diagnose(--TmpPtr, diag::string_interpolation_unclosed);
+          DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,Lexer::getSourceLocation(--TmpPtr), "string interpolation unclosed"));
 
           // The only case we reach here is unterminated single line string in
           // the interpolation. For better recovery, go on after emitting
           // an error.
-          diagnose(CurPtr, diag::lex_unterminated_string);
+          // diagnose(CurPtr, diag::lex_unterminated_string);
+          DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,Lexer::getSourceLocation(CurPtr),  "unterminated string literal"));
+
           wasErroneous = true;
           continue;
         } else if (!IsMultilineString || CurPtr == BufferEnd) {
-          diagnose(--TmpPtr, diag::string_interpolation_unclosed);
+          // diagnose(--TmpPtr, diag::string_interpolation_unclosed);
+          DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,Lexer::getSourceLocation(--TmpPtr), "string interpolation unclosed"));
+
         }
 
         // As a fallback, just emit an unterminated string error.
-        diagnose(TokStart, diag::lex_unterminated_string);
+        // diagnose(TokStart, diag::lex_unterminated_string);
+        DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,Lexer::getSourceLocation(TokStart),  "unterminated string literal"));
         return formToken(tok::unknown, TokStart);
       }
     }
@@ -2030,7 +2055,8 @@ void Lexer::lexStringLiteral(unsigned CustomDelimiterLen) {
     // String literals cannot have \n or \r in them (unless multiline).
     if (((*CurPtr == '\r' || *CurPtr == '\n') && !IsMultilineString)
         || CurPtr == BufferEnd) {
-      diagnose(TokStart, diag::lex_unterminated_string);
+      // diagnose(TokStart, diag::lex_unterminated_string);
+      DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,Lexer::getSourceLocation(TokStart),  "unterminated string literal"));
       return formToken(tok::unknown, TokStart);
     }
 
@@ -2090,7 +2116,8 @@ const char *Lexer::findEndOfCurlyQuoteStringLiteral(const char *Body,
     // an opening curly quote) diagnose it with a fixit and then return.
     if (CharValue == 0x0000201D) {
       if (EmitDiagnostics) {
-        diagnose(CharStart, diag::lex_invalid_curly_quote);
+        DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,Lexer::getSourceLocation(CharStart),  "invalid curly quote"));
+        // diagnose(CharStart, diag::lex_invalid_curly_quote);
             // .fixItReplaceChars(getSourceLoc(CharStart), getSourceLoc(Body),
             //                    "\"");
       }
@@ -2102,8 +2129,8 @@ const char *Lexer::findEndOfCurlyQuoteStringLiteral(const char *Body,
 }
 
 bool Lexer::isPotentialUnskippableBareSlashRegexLiteral(const Token &Tok) const {
-  if (!LangOpts.hasFeature(Feature::BareSlashRegexLiterals))
-    return false;
+  // if (!LangOpts.hasFeature(Feature::BareSlashRegexLiterals))
+  //   return false;
 
   // A `/.../` regex literal may only start on a binary or prefix operator.
   if (Tok.isNot(tok::oper_prefix, tok::oper_binary_spaced,
@@ -2114,7 +2141,7 @@ bool Lexer::isPotentialUnskippableBareSlashRegexLiteral(const Token &Tok) const 
   if (SlashIdx == llvm::StringRef::npos)
     return false;
 
-  auto Offset = getBufferPtrForSourceLoc(Tok.getLoc()) + SlashIdx;
+  auto Offset = getBufferPtrForSourceLocation(Tok.getLoc()) + SlashIdx;
   bool CompletelyErroneous;
   if (tryScanRegexLiteral(Offset, /*MustBeRegex*/ false, /*Diags*/ nullptr,
                           CompletelyErroneous)) {
@@ -2140,7 +2167,7 @@ bool Lexer::isPotentialUnskippableBareSlashRegexLiteral(const Token &Tok) const 
     return false;
 
   Lexer L(*this, State(Tok.getLoc().getAdvancedLoc(Tok.getLength())),
-          State(getSourceLoc(EndPtr)), /*EnableDiagnostics*/ false);
+          State(getSourceLocation(EndPtr)), /*EnableDiagnostics*/ false);
 
   unsigned OpenBraces = 0;
   while (L.peekNextToken().isNot(tok::eof)) {
@@ -2410,7 +2437,8 @@ bool Lexer::tryLexConflictMarker(bool EatNewline) {
                                         : ConflictMarkerKind::Perforce;
   if (const char *End = findConflictEnd(Ptr, BufferEnd, Kind)) {
     // Diagnose at the conflict marker, then jump ahead to the end.
-    diagnose(CurPtr, diag::lex_conflict_marker_in_file);
+    // diagnose(CurPtr, diag::lex_conflict_marker_in_file);
+    DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,Lexer::getSourceLocation(CurPtr), "conflict marker in file"));
     CurPtr = End;
 
     // Skip ahead to the end of the marker.
@@ -2431,7 +2459,8 @@ bool Lexer::lexUnknown(bool EmitDiagnosticsIfToken) {
     // If this is a valid identifier continuation, but not a valid identifier
     // start, attempt to recover by eating more continuation characters.
     if (EmitDiagnosticsIfToken) {
-      diagnose(CurPtr - 1, diag::lex_invalid_identifier_start_character);
+      // diagnose(CurPtr - 1, diag::lex_invalid_identifier_start_character);
+      DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error, Lexer::getSourceLocation(CurPtr - 1), "invalid identifier start character"));
     }
     while (advanceIfValidContinuationOfIdentifier(Tmp, BufferEnd))
       ;
@@ -2442,7 +2471,8 @@ bool Lexer::lexUnknown(bool EmitDiagnosticsIfToken) {
   // This character isn't allowed in Swift source.
   uint32_t Codepoint = validateUTF8CharacterAndAdvance(Tmp, BufferEnd);
   if (Codepoint == ~0U) {
-    diagnose(CurPtr - 1, diag::lex_invalid_utf8);
+    DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error, Lexer::getSourceLocation(CurPtr - 1), "invalid UTF-8 found in source file"));
+    // diagnose(CurPtr - 1, diag::lex_invalid_utf8);
         // .fixItReplaceChars(getSourceLoc(CurPtr - 1), getSourceLoc(Tmp), " ");
     CurPtr = Tmp;
     return false; // Skip presumed whitespace.
@@ -2452,7 +2482,8 @@ bool Lexer::lexUnknown(bool EmitDiagnosticsIfToken) {
         Tmp += 2;
       llvm::SmallString<8> Spaces;
       Spaces.assign((Tmp - CurPtr + 1) / 2, ' ');
-      diagnose(CurPtr - 1, diag::lex_nonbreaking_space);
+      DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error, Lexer::getSourceLocation(CurPtr - 1), "non-breaking space"));
+      // diagnose(CurPtr - 1, diag::lex_nonbreaking_space);
           // .fixItReplaceChars(getSourceLoc(CurPtr - 1), getSourceLoc(Tmp),
           //                    Spaces);
       CurPtr = Tmp;
@@ -2460,8 +2491,9 @@ bool Lexer::lexUnknown(bool EmitDiagnosticsIfToken) {
   } else if (Codepoint == 0x0000201D) {
     // If this is an end curly quote, just diagnose it with a fixit hint.
     if (EmitDiagnosticsIfToken) {
-      diagnose(CurPtr - 1, diag::lex_invalid_curly_quote);
+      // diagnose(CurPtr - 1, diag::lex_invalid_curly_quote);
           // .fixItReplaceChars(getSourceLoc(CurPtr - 1), getSourceLoc(Tmp), "\"");
+      DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error, Lexer::getSourceLocation(CurPtr - 1), "invalid curly quote"));
     }
     CurPtr = Tmp;
     return true;
@@ -2479,32 +2511,36 @@ bool Lexer::lexUnknown(bool EmitDiagnosticsIfToken) {
     // diagnose an end curly quote in the middle of a straight quoted
     // literal.
     if (EmitDiagnosticsIfToken) {
-      diagnose(CurPtr - 1, diag::lex_invalid_curly_quote);
+      // diagnose(CurPtr - 1, diag::lex_invalid_curly_quote);
           // .fixItReplaceChars(getSourceLoc(CurPtr - 1), getSourceLoc(EndPtr),
           //                    "\"");
+      DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error, Lexer::getSourceLocation(CurPtr - 1), "invalid curly quote"));
     }
     CurPtr = Tmp;
     return true;
   }
 
-  diagnose(CurPtr - 1, diag::lex_invalid_character);
+  // diagnose(CurPtr - 1, diag::lex_invalid_character);
       // .fixItReplaceChars(getSourceLoc(CurPtr - 1), getSourceLoc(Tmp), " ");
+  DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error, Lexer::getSourceLocation(CurPtr - 1), "invalid character"));
 
-  char ExpectedCodepoint;
-  if ((ExpectedCodepoint =
-           confusable::tryConvertConfusableCharacterToASCII(Codepoint))) {
-
-    llvm::SmallString<4> ConfusedChar;
-    EncodeToUTF8(Codepoint, ConfusedChar);
-    llvm::SmallString<1> ExpectedChar;
-    ExpectedChar += ExpectedCodepoint;
-    auto charNames = confusable::getConfusableAndBaseCodepointNames(Codepoint);
-    // diagnose(CurPtr - 1, diag::lex_confusable_character, ConfusedChar,
-    //          charNames.first, ExpectedChar, charNames.second);
-        // .fixItReplaceChars(getSourceLoc(CurPtr - 1), getSourceLoc(Tmp),
-        //                    ExpectedChar);
-    diagnose(CurPtr - 1, diag::lex_confusable_character);
-  }
+  // TODO: Fix Me - If we have a confusable character, we should try to diagnose
+  // char ExpectedCodepoint;
+  // if ((ExpectedCodepoint =
+  //          confusable::tryConvertConfusableCharacterToASCII(Codepoint))) {
+  //
+  //   llvm::SmallString<4> ConfusedChar;
+  //   EncodeToUTF8(Codepoint, ConfusedChar);
+  //   llvm::SmallString<1> ExpectedChar;
+  //   ExpectedChar += ExpectedCodepoint;
+  //   auto charNames = confusable::getConfusableAndBaseCodepointNames(Codepoint);
+  //
+  //   // diagnose(CurPtr - 1, diag::lex_confusable_character, ConfusedChar,
+  //   //          charNames.first, ExpectedChar, charNames.second);
+  //       // .fixItReplaceChars(getSourceLoc(CurPtr - 1), getSourceLoc(Tmp),
+  //       //                    ExpectedChar);
+  //   DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error, Lexer::getSourceLocation(CurPtr - 1), "confusable character"));
+  // }
 
   CurPtr = Tmp;
   return false; // Skip presumed whitespace.
@@ -2680,7 +2716,7 @@ void Lexer::getStringLiteralSegments(
 
     // Push the current segment.
     Segments.push_back(
-        StringSegment::getLiteral(getSourceLoc(SegmentStartPtr),
+        StringSegment::getLiteral(getSourceLocation(SegmentStartPtr),
                                   BytesPtr-SegmentStartPtr-2-CustomDelimiterLen,
                                   IsFirstSegment, false, IndentToStrip,
                                   CustomDelimiterLen));
@@ -2695,7 +2731,7 @@ void Lexer::getStringLiteralSegments(
 
     // Add an expression segment.
     Segments.push_back(
-        StringSegment::getExpr(getSourceLoc(BytesPtr-1), End-BytesPtr+1));
+        StringSegment::getExpr(getSourceLocation(BytesPtr-1), End-BytesPtr+1));
 
     // Reset the beginning of the segment to the string that remains to be
     // consumed.
@@ -2703,7 +2739,7 @@ void Lexer::getStringLiteralSegments(
   }
 
   Segments.push_back(
-      StringSegment::getLiteral(getSourceLoc(SegmentStartPtr),
+      StringSegment::getLiteral(getSourceLocation(SegmentStartPtr),
                                 Bytes.end()-SegmentStartPtr,
                                 IsFirstSegment, true, IndentToStrip,
                                 CustomDelimiterLen));
@@ -2773,7 +2809,8 @@ void Lexer::lexImpl() {
 
   case (char)-1:
   case (char)-2:
-    diagnose(CurPtr-1, diag::lex_utf16_bom_marker);
+    // diagnose(CurPtr-1, diag::lex_utf16_bom_marker);
+    DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error, Lexer::getSourceLocation(CurPtr-1), "UTF-16 BOM marker"));
     CurPtr = BufferEnd;
     return formToken(tok::unknown, TokStart);
 
@@ -2903,7 +2940,7 @@ void Lexer::lexImpl() {
   }
 }
 
-Token Lexer::getTokenAtLocation(const SourceManager &SM, SourceLoc Loc,
+Token Lexer::getTokenAtLocation(const SourceManager &SM, SourceLocation Loc,
                                 CommentRetentionMode CRM) {
   // Don't try to do anything with an invalid location.
   if (!Loc.isValid())
@@ -2985,7 +3022,8 @@ Restart:
       // Hashbang '#!/path/to/swift'.
       --CurPtr;
       if (!IsHashbangAllowed)
-        diagnose(TriviaStart, diag::lex_hashbang_not_allowed);
+        // diagnose(TriviaStart, diag::lex_hashbang_not_allowed);
+          DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error, Lexer::getSourceLocation(TriviaStart), "hashbang not allowed"));
       skipHashbang(/*EatNewline=*/false);
       goto Restart;
     }
@@ -3050,12 +3088,12 @@ Restart:
   --CurPtr;
 }
 
-SourceLoc Lexer::getLocForEndOfToken(const SourceManager &SM, SourceLoc Loc) {
+SourceLocation Lexer::getLocForEndOfToken(const SourceManager &SM, SourceLocation Loc) {
   return Loc.getAdvancedLocOrInvalid(getTokenAtLocation(SM, Loc).getLength());
 }
 
 
-static SourceLoc getLocForStartOfTokenInBuf(SourceManager &SM,
+static SourceLocation getLocForStartOfTokenInBuf(SourceManager &SM,
                                             unsigned BufferID,
                                             unsigned Offset,
                                             unsigned BufferStart,
@@ -3122,22 +3160,22 @@ static const char *findStartOfLine(const char *bufStart, const char *current) {
   return current;
 }
 
-SourceLoc Lexer::getLocForStartOfToken(SourceManager &SM, SourceLoc Loc) {
+SourceLocation Lexer::getLocForStartOfToken(SourceManager &SM, SourceLocation Loc) {
   if (!Loc.isValid())
-    return SourceLoc();
+    return SourceLocation();
   unsigned BufferId = SM.findBufferContainingLoc(Loc);
   return getLocForStartOfToken(SM, BufferId,
                                SM.getLocOffsetInBuffer(Loc, BufferId));
 }
 
-SourceLoc Lexer::getLocForStartOfToken(SourceManager &SM, unsigned BufferID,
+SourceLocation Lexer::getLocForStartOfToken(SourceManager &SM, unsigned BufferID,
                                        unsigned Offset) {
   CharSourceRange entireRange = SM.getRangeForBuffer(BufferID);
   llvm::StringRef Buffer = SM.extractText(entireRange);
 
   const char *BufStart = Buffer.data();
   if (Offset > Buffer.size())
-    return SourceLoc();
+    return SourceLocation();
 
   const char *StrData = BufStart+Offset;
   // If it points to whitespace return the SourceLoc for it.
@@ -3154,7 +3192,7 @@ SourceLoc Lexer::getLocForStartOfToken(SourceManager &SM, unsigned BufferID,
                                     /*BufferEnd=*/Buffer.size());
 }
 
-SourceLoc Lexer::getLocForStartOfLine(SourceManager &SM, SourceLoc Loc) {
+SourceLocation Lexer::getLocForStartOfLine(SourceManager &SM, SourceLocation Loc) {
   // Don't try to do anything with an invalid location.
   if (Loc.isInvalid())
     return Loc;
@@ -3162,7 +3200,7 @@ SourceLoc Lexer::getLocForStartOfLine(SourceManager &SM, SourceLoc Loc) {
   // Figure out which buffer contains this location.
   int BufferID = SM.findBufferContainingLoc(Loc);
   if (BufferID < 0)
-    return SourceLoc();
+    return SourceLocation();
 
   CharSourceRange entireRange = SM.getRangeForBuffer(BufferID);
   llvm::StringRef Buffer = SM.extractText(entireRange);
@@ -3171,10 +3209,10 @@ SourceLoc Lexer::getLocForStartOfLine(SourceManager &SM, SourceLoc Loc) {
   unsigned Offset = SM.getLocOffsetInBuffer(Loc, BufferID);
 
   const char *StartOfLine = findStartOfLine(BufStart, BufStart + Offset);
-  return getSourceLoc(StartOfLine);
+  return getSourceLocation(StartOfLine);
 }
 
-SourceLoc Lexer::getLocForEndOfLine(SourceManager &SM, SourceLoc Loc) {
+SourceLocation Lexer::getLocForEndOfLine(SourceManager &SM, SourceLocation Loc) {
   // Don't try to do anything with an invalid location.
   if (Loc.isInvalid())
     return Loc;
@@ -3182,7 +3220,7 @@ SourceLoc Lexer::getLocForEndOfLine(SourceManager &SM, SourceLoc Loc) {
   // Figure out which buffer contains this location.
   int BufferID = SM.findBufferContainingLoc(Loc);
   if (BufferID < 0)
-    return SourceLoc();
+    return SourceLocation();
 
   CharSourceRange entireRange = SM.getRangeForBuffer(BufferID);
   llvm::StringRef Buffer = SM.extractText(entireRange);
@@ -3192,11 +3230,11 @@ SourceLoc Lexer::getLocForEndOfLine(SourceManager &SM, SourceLoc Loc) {
   size_t Offset = SM.getLocOffsetInBuffer(Loc, BufferID);
   Offset = Buffer.find('\n', Offset);
   if (Offset == llvm::StringRef::npos)
-    return SourceLoc();
-  return getSourceLoc(Buffer.data() + Offset + 1);
+    return SourceLocation();
+  return getSourceLocation(Buffer.data() + Offset + 1);
 }
 
-llvm::StringRef Lexer::getIndentationForLine(SourceManager &SM, SourceLoc Loc,
+llvm::StringRef Lexer::getIndentationForLine(SourceManager &SM, SourceLocation Loc,
                                        llvm::StringRef *ExtraIndentation) {
   // FIXME: do something more intelligent here.
   //
@@ -3257,8 +3295,8 @@ bool tryAdvanceToEndOfConflictMarker(const char *&CurPtr,
 }
 
 llvm::ArrayRef<Token> swift::
-slice_token_array(llvm::ArrayRef<Token> AllTokens, SourceLoc StartLoc,
-                  SourceLoc EndLoc) {
+slice_token_array(llvm::ArrayRef<Token> AllTokens, SourceLocation StartLoc,
+                  SourceLocation EndLoc) {
   assert(StartLoc.isValid() && EndLoc.isValid());
   auto StartIt = token_lower_bound(AllTokens, StartLoc);
   auto EndIt = token_lower_bound(AllTokens, EndLoc);

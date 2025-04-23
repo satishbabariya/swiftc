@@ -1,14 +1,15 @@
 add_library(
-    swift_compiler
-    STATIC
-    SourceManager.cpp
-    DiagnosticEngine.cpp
-    Lexer.cpp
+        swift_compiler
+        STATIC
+        SourceManager.cpp
+        DiagnosticEngine.cpp
+        Lexer.cpp
+        CharInfo.cpp
 )
 
 target_include_directories(swift_compiler PUBLIC
-    ${CMAKE_SOURCE_DIR}/include
-    ${LLVM_INCLUDE_DIRS}
+        ${CMAKE_SOURCE_DIR}/include
+        ${LLVM_INCLUDE_DIRS}
 )
 
 # Map LLVM components to libraries and link with the compiler library only
@@ -17,12 +18,12 @@ target_link_libraries(swift_compiler PRIVATE ${llvm_libs})
 
 # Executable target
 add_executable(swiftc
-    main.cpp
+        main.cpp
 )
 
 target_include_directories(swiftc PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-    ${LLVM_INCLUDE_DIRS}
+        ${CMAKE_SOURCE_DIR}/include
+        ${LLVM_INCLUDE_DIRS}
 )
 
 # Just link the compiler library; it already pulls in LLVM libs

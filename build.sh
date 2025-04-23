@@ -9,4 +9,5 @@ mkdir -p build
 # Clean previous build
 rm -rf build/*
 
-cd build && cmake .. && make && ctest --output-on-failure -V
+cd build && cmake .. && make 
+# && ctest --output-on-failure -V

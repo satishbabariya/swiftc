@@ -57,7 +57,7 @@ unsigned DiagnosticEngine::getWarningCount() const {
     return NumWarnings;
 }
 
-void DiagnosticEngine::emitDiagnostic(const Diagnostic &Diag) {
+void DiagnosticEngine::emitDiagnostic(const Diagnostic &Diag) const {
     for (const auto &Consumer : Consumers) {
         Consumer->handleDiagnostic(Diag, SM);
     }

@@ -171,8 +171,37 @@ namespace swift {
          * @brief Emits a diagnostic to all consumers.
          * @param Diag The diagnostic to emit
          */
-        void emitDiagnostic(const Diagnostic &Diag);
+        void emitDiagnostic(const Diagnostic &Diag) const;
     };
+
+    class DiagnosticQueue {
+        std::vector<Diagnostic> Diagnostics;
+        DiagnosticEngine &Engine;
+
+    public:
+        explicit DiagnosticQueue(DiagnosticEngine &engine, bool emitOnDestruction = true)
+          : Engine(engine) {}
+
+        void diagnose(const Diagnostic &diag) {
+            Diagnostics.push_back(diag);
+        }
+
+        void emit() {
+            for (const auto &diag : Diagnostics) {
+                // Engine.diagnose(diag);
+                // TODO: Implement the actual emission logic
+            }
+            Diagnostics.clear();
+        }
+
+        [[nodiscard]] DiagnosticEngine &getDiags() const { return Engine; }
+        [[nodiscard]] DiagnosticEngine &getUnderlyingDiags() const { return Engine; }
+
+        void clear() {
+            Diagnostics.clear();
+        }
+    };
+
 } // namespace swift
 
 #endif // SWIFT_DIAGNOSTIC_DIAGNOSTICENGINE_H

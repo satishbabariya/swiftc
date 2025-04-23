@@ -761,7 +761,7 @@ void Lexer::lexHash() {
   tok Kind = llvm::StringSwitch<tok>(llvm::StringRef(CurPtr, tmpPtr-CurPtr))
 #define POUND_KEYWORD(id) \
   .Case(#id, tok::pound_##id)
-#include "swift/lexer/TokenKinds.def"
+#include "swift/Lexer/TokenKinds.def"
   .Default(tok::pound);
 
   // If we found '#assert' but that experimental feature is not enabled,
@@ -1072,7 +1072,7 @@ void Lexer::lexHexNumber() {
     //          (unsigned)ExpectedDigitKind::Hex);
     // "invalid digit '%0' in integer literal"
     // replace with %0 with llvm::StringRef(loc, 1)
-    DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(loc), std::format("invalid digit '%0' in integer literal", llvm::StringRef(loc, 1) )));
+    DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(loc), "invalid digit '" + std::string(loc, 1) + "' in integer literal"));
     // DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(loc), ))
     return expected_digit();
   };
@@ -1148,7 +1148,7 @@ void Lexer::lexHexNumber() {
       // diagnose(tmp, diag::lex_invalid_digit_in_fp_exponent, llvm::StringRef(tmp, 1),
       //          *tmp == '_');
         // diagnose(CurPtr, diag::lex_expected_binary_exponent_in_hex_float_literal);
-          DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CurPtr), std::format("invalid digit '%0' in exponent", llvm::StringRef(tmp, 1))));
+          DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CurPtr), "invalid digit '" + std::string(tmp, 1) + "' in exponent"));
     else
       // diagnose(CurPtr, diag::lex_expected_digit_in_fp_exponent);
       DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error, getSourceLocation(CurPtr),  "expected a digit in floating point exponent"));
@@ -1162,7 +1162,7 @@ void Lexer::lexHexNumber() {
   if (advanceIfValidContinuationOfIdentifier(CurPtr, BufferEnd)) {
     // diagnose(tmp, diag::lex_invalid_digit_in_fp_exponent, llvm::StringRef(tmp, 1),
     //          false);
-    DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CurPtr), std::format("invalid digit '%0' in exponent", llvm::StringRef(tmp, 1))));
+    DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CurPtr), "invalid digit '" + std::string(tmp, 1) + "' in exponent"));
     return expected_digit();
   }
 
@@ -1192,7 +1192,7 @@ void Lexer::lexNumber() {
     // diagnose(loc, diag::lex_invalid_digit_in_int_literal, llvm::StringRef(loc, 1),
     //          (unsigned)kind);
     // diagnose(CurPtr, diag::lex_expected_binary_exponent_in_hex_float_literal);
-    DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(loc), std::format("invalid digit '%0' in integer literal", llvm::StringRef(loc, 1))));
+    DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(loc), "invalid digit '" + std::string(loc, 1) + "' in integer literal"));
     return expected_digit();
   };
 
@@ -1278,7 +1278,7 @@ void Lexer::lexNumber() {
         // diagnose(tmp, diag::lex_invalid_digit_in_fp_exponent, llvm::StringRef(tmp, 1),
         //          *tmp == '_');
           // diagnose(CurPtr, diag::lex_expected_binary_exponent_in_hex_float_literal);
-            DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CurPtr), std::format("invalid digit '%0' in exponent", llvm::StringRef(tmp, 1))));
+            DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CurPtr), "invalid digit '" + std::string(tmp, 1) + "' in exponent"));
       else
         // diagnose(CurPtr, diag::lex_expected_digit_in_fp_exponent);
           DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error, getSourceLocation(CurPtr), "expected a digit in floating point exponent"));
@@ -1294,7 +1294,7 @@ void Lexer::lexNumber() {
       // diagnose(tmp, diag::lex_invalid_digit_in_fp_exponent, llvm::StringRef(tmp, 1),
       //          false);
       // diagnose(CurPtr, diag::lex_expected_digit_in_fp_exponent);
-      DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CurPtr), std::format("invalid digit '%0' in exponent", llvm::StringRef(tmp, 1))));
+      DiagQueue->diagnose(Diagnostic(DiagnosticSeverity::Error,getSourceLocation(CurPtr), "invalid digit '" + std::string(tmp, 1) + "' in exponent"));
 
       return expected_digit();
     }

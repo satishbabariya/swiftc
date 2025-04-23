@@ -24,8 +24,10 @@ let result = greet(name: "World")
     swift::DiagnosticEngine diagEngine(sourceMgr);
 
     // Create a buffer from the sample code
-    unsigned bufferID = sourceMgr.addNewSourceBuffer(
-        llvm::MemoryBuffer::getMemBuffer(sampleCode, "sample.swift"));
+    auto buffer = llvm::MemoryBuffer::getMemBuffer(sampleCode, "sample.swift");
+    unsigned bufferID = sourceMgr.addNewSourceBuffer(std::move(buffer));
+    // unsigned bufferID = sourceMgr.addNewSourceBuffer(
+    //     llvm::MemoryBuffer::getMemBuffer(sampleCode, "sample.swift"));
 
 
     // Create the lexer with default options

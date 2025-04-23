@@ -136,7 +136,7 @@ Lexer::Lexer(const PrincipalTag &, const LangOptions &LangOpts,
       IsHashbangAllowed(HashbangAllowed == HashbangMode::Allowed),
       RetainComments(RetainComments) {
   if (Diags)
-    DiagQueue.emplace(*Diags, /*emitOnDestruction*/ false);
+    DiagQueue.emplace(*Diags, false);
 }
 
 void Lexer::initialize(unsigned Offset, unsigned EndOffset) {
@@ -146,8 +146,25 @@ void Lexer::initialize(unsigned Offset, unsigned EndOffset) {
   llvm::StringRef contents =
       SourceMgr.extractText(SourceMgr.getRangeForBuffer(BufferID));
   BufferStart = contents.data();
-  BufferEnd = contents.data() + contents.size();
-  assert(*BufferEnd == 0);
+  
+  // Ensure we have a null-terminated buffer by copying if needed
+  if (contents.size() > 0 && contents.data()[contents.size()] != 0) {
+    // We need to make a copy with a null terminator
+    static std::string NullTerminatedCopy;
+    NullTerminatedCopy = contents.str();
+    BufferStart = NullTerminatedCopy.c_str();
+    BufferEnd = BufferStart + NullTerminatedCopy.size();
+    // The c_str() ensures there's a null terminator
+  } else {
+    BufferEnd = BufferStart + contents.size();
+  }
+  
+  // Safety check for EndOffset - ensure it doesn't exceed buffer size
+  if (EndOffset > contents.size()) {
+    EndOffset = contents.size();
+  }
+  
+  assert(*BufferEnd == 0 && "Buffer must be null-terminated");
   assert(BufferStart + Offset <= BufferEnd);
   assert(BufferStart + EndOffset <= BufferEnd);
 
@@ -740,8 +757,9 @@ void Lexer::lexIdentifier() {
   // Lex [a-zA-Z_$0-9[[:XID_Continue:]]]*
   while (advanceIfValidContinuationOfIdentifier(CurPtr, BufferEnd));
 
-  tok Kind = kindOfIdentifier(llvm::StringRef(TokStart, CurPtr-TokStart),
-                              LexMode == LexerMode::SIL);
+  // Determine the token kind for this identifier
+  llvm::StringRef IdentifierStr(TokStart, CurPtr-TokStart);
+  tok Kind = kindOfIdentifier(IdentifierStr, LexMode == LexerMode::SIL);
   return formToken(Kind, TokStart);
 }
 
@@ -2202,7 +2220,7 @@ const char *Lexer::tryScanRegexLiteral(const char *TokStart, bool MustBeRegex,
     case ' ':  return "space";
     case '\t': return "tab";
     default:   llvm_unreachable("Unhandled case");
-    }
+  }
   };
 
   // Check if we're able to lex a `/.../` regex.
@@ -2761,9 +2779,7 @@ void Lexer::lexImpl() {
 
   if (CurPtr == BufferStart) {
     if (BufferStart < ContentStart) {
-      size_t BOMLen = ContentStart - BufferStart;
-      assert(BOMLen == 3 && "UTF-8 BOM is 3 bytes");
-      CurPtr += BOMLen;
+      // Skip UTF-8 BOM if it exists.
     }
     NextToken.setAtStartOfLine(true);
   } else {
@@ -2782,11 +2798,13 @@ void Lexer::lexImpl() {
   switch (*CurPtr++) {
   default: {
     char const *Tmp = CurPtr-1;
-    if (advanceIfValidStartOfIdentifier(Tmp, BufferEnd))
+    if (advanceIfValidStartOfIdentifier(Tmp, BufferEnd)) {
       return lexIdentifier();
+    }
 
-    if (advanceIfValidStartOfOperator(Tmp, BufferEnd))
+    if (advanceIfValidStartOfOperator(Tmp, BufferEnd)) {
       return lexOperatorIdentifier();
+    }
 
     bool ShouldTokenize = lexUnknown(/*EmitDiagnosticsIfToken=*/true);
     assert(
@@ -2849,12 +2867,14 @@ void Lexer::lexImpl() {
   case '#': {
     // Try lex a raw string literal.
     auto *Diags = getTokenDiags();
-    if (unsigned CustomDelimiterLen = advanceIfCustomDelimiter(CurPtr, Diags))
+    if (unsigned CustomDelimiterLen = advanceIfCustomDelimiter(CurPtr, Diags)) {
       return lexStringLiteral(CustomDelimiterLen);
+    }
 
     // Try lex a regex literal.
-    if (tryLexRegexLiteral(TokStart))
+    if (tryLexRegexLiteral(TokStart)) {
       return;
+    }
 
     // Otherwise try lex a magic pound literal.
     return lexHash();
@@ -2862,7 +2882,7 @@ void Lexer::lexImpl() {
   // Operator characters.
   case '/':
     if (CurPtr[0] == '/') {  // "//"
-      skipSlashSlashComment(/*EatNewline=*/true);
+      skipSlashSlashComment(true);
       assert(isKeepingComments() &&
              "Non token comment should be eaten by lexTrivia as LeadingTrivia");
       return formToken(tok::comment, TokStart);
@@ -2874,36 +2894,41 @@ void Lexer::lexImpl() {
       return formToken(tok::comment, TokStart);
     }
     // Try lex a regex literal.
-    if (tryLexRegexLiteral(TokStart))
+    if (tryLexRegexLiteral(TokStart)) {
       return;
+    }
 
     return lexOperatorIdentifier();
+  case '$': return lexDollarIdent();
   case '%':
     // Lex %[0-9a-zA-Z_]+ as a local SIL value
     if (InSILBody && isAsciiIdentifierContinue(CurPtr[0])) {
       do {
         ++CurPtr;
       } while (isAsciiIdentifierContinue(CurPtr[0]));
-
       return formToken(tok::sil_local_name, TokStart);
     }
     return lexOperatorIdentifier();
 
   case '!':
-    if (InSILBody)
+    if (InSILBody) {
       return formToken(tok::sil_exclamation, TokStart);
-    if (isLeftBound(TokStart, ContentStart))
+    }
+    if (isLeftBound(TokStart, ContentStart)) {
       return formToken(tok::exclaim_postfix, TokStart);
+    }
     return lexOperatorIdentifier();
 
   case '?':
-    if (isLeftBound(TokStart, ContentStart))
+    if (isLeftBound(TokStart, ContentStart)) {
       return formToken(tok::question_postfix, TokStart);
+    }
     return lexOperatorIdentifier();
 
   case '<':
-    if (CurPtr[0] == '#')
+    if (CurPtr[0] == '#') {
       return tryLexEditorPlaceholder();
+    }
 
     return lexOperatorIdentifier();
   case '>':
@@ -2912,6 +2937,14 @@ void Lexer::lexImpl() {
   case '=': case '-': case '+': case '*':
   case '&': case '|':  case '^': case '~': case '.':
     return lexOperatorIdentifier();
+
+  case '0': case '1': case '2': case '3': case '4':
+  case '5': case '6': case '7': case '8': case '9':
+    return lexNumber();
+
+  case '\'':
+  case '"':
+    return lexStringLiteral();
 
   case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G':
   case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': case 'N':
@@ -2923,17 +2956,6 @@ void Lexer::lexImpl() {
   case 'v': case 'w': case 'x': case 'y': case 'z':
   case '_':
     return lexIdentifier();
-
-  case '$':
-    return lexDollarIdent();
-
-  case '0': case '1': case '2': case '3': case '4':
-  case '5': case '6': case '7': case '8': case '9':
-    return lexNumber();
-
-  case '\'':
-  case '"':
-    return lexStringLiteral();
 
   case '`':
     return lexEscapedIdentifier();

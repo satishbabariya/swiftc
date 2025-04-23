@@ -208,12 +208,14 @@ public:
   /// Lex a token.
   void lex(Token &Result) {
     Result = NextToken;
+  
     // Emit any diagnostics recorded for this token.
     if (DiagQueue)
       DiagQueue->emit();
 
-    if (Result.isNot(tok::eof))
+    if (Result.isNot(tok::eof)) {
       lexImpl();
+    }
   }
 
   /// Reset the lexer's buffer pointer to \p Offset bytes after the buffer

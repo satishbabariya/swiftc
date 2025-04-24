@@ -143,12 +143,12 @@ void Lexer::initialize(unsigned Offset, unsigned EndOffset) {
   assert(Offset <= EndOffset);
 
   // Initialize buffer pointers.
-  llvm::StringRef contents =
+  const llvm::StringRef contents =
       SourceMgr.extractText(SourceMgr.getRangeForBuffer(BufferID));
   BufferStart = contents.data();
 
   // Ensure we have a null-terminated buffer by copying if needed
-  if (contents.size() > 0 && contents.data()[contents.size()] != 0) {
+  if (!contents.empty() && contents.data()[contents.size()] != 0) {
     // We need to make a copy with a null terminator
     static std::string NullTerminatedCopy;
     NullTerminatedCopy = contents.str();

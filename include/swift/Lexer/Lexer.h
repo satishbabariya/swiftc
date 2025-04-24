@@ -669,6 +669,15 @@ namespace swift {
   /// where front() locates at \param StartLoc and back() locates at \param EndLoc .
   llvm::ArrayRef<Token> slice_token_array(llvm::ArrayRef<Token> AllTokens, SourceLocation StartLoc,
                                           SourceLocation EndLoc);
+
+  /// Lex and return a vector of tokens for the given buffer.
+  std::vector<Token> tokenize(const LangOptions &LangOpts,
+                              const SourceManager &SM, unsigned BufferID,
+                              unsigned Offset = 0, unsigned EndOffset = 0,
+                              DiagnosticEngine *Diags = nullptr,
+                              bool KeepComments = true,
+                              bool TokenizeInterpolatedString = true,
+                              llvm::ArrayRef<Token> SplitTokens = llvm::ArrayRef<Token>());
 }
 
 #endif //LEXER_H

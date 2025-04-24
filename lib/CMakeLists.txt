@@ -5,6 +5,7 @@ add_library(
         DiagnosticEngine.cpp
         Lexer.cpp
         CharInfo.cpp
+        Tokenizer.cpp
 )
 
 target_include_directories(swift_compiler PUBLIC

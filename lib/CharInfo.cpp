@@ -1,4 +1,4 @@
-#include "../include/swift/Lexer/CharInfo.h"
+#include "swift/Lexer/CharInfo.h"
 
 namespace swift {
     namespace charinfo {

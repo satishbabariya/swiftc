@@ -258,3 +258,14 @@ CharSourceRange SourceManager::getRangeForBuffer(unsigned BufferID) const {
 
   return CharSourceRange(Start, Buffer.size());
 }
+
+unsigned SourceManager::addMemBufferCopy(const llvm::MemoryBuffer *Buffer) {
+  return addMemBufferCopy(Buffer->getBuffer(), Buffer->getBufferIdentifier());
+}
+
+unsigned SourceManager::addMemBufferCopy(const llvm::StringRef InputData,
+                                         const llvm::StringRef BufIdentifier) {
+  auto Buffer = std::unique_ptr<llvm::MemoryBuffer>(
+      llvm::MemoryBuffer::getMemBufferCopy(InputData, BufIdentifier));
+  return addNewSourceBuffer(std::move(Buffer));
+}

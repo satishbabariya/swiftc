@@ -166,6 +166,10 @@ namespace swift {
          */
         [[nodiscard]] CharSourceRange getRangeForBuffer(unsigned BufferID) const;
 
+        unsigned addMemBufferCopy(const llvm::MemoryBuffer *Buffer);
+
+        unsigned addMemBufferCopy(llvm::StringRef InputData, llvm::StringRef BufIdentifier);
+
     private:
         /// LLVM SourceMgr that handles the raw source buffers.
         llvm::SourceMgr LLVMSourceMgr;

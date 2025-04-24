@@ -10,7 +10,7 @@
 class MyDiagnosticConsumer : public swift::DiagnosticConsumer {
 public:
     bool hadError = false;
-    
+
     void handleDiagnostic(const swift::Diagnostic &Diag, const swift::SourceManager &SM) override {
         std::string severity;
         switch (Diag.Severity) {
@@ -28,28 +28,28 @@ public:
                 severity = "remark";
                 break;
         }
-        
+
         std::cout << "Diagnostic [" << severity << "]: " << Diag.Message << std::endl;
-        
+
         // Only try to get location info if location is valid
         if (Diag.Location.isValid()) {
             try {
                 unsigned BufferID = SM.findBufferContainingLoc(Diag.Location);
                 if (BufferID != ~0U) {
                     unsigned Offset = SM.getLocOffsetInBuffer(Diag.Location, BufferID);
-                    
+
                     // Calculate line and column from offset
                     llvm::StringRef BufferStr = SM.getBufferContent(BufferID);
                     unsigned Line = 1;
                     unsigned LastLineStart = 0;
-                    
+
                     for (unsigned i = 0; i < Offset && i < BufferStr.size(); ++i) {
                         if (BufferStr[i] == '\n') {
                             ++Line;
                             LastLineStart = i + 1;
                         }
                     }
-                    
+
                     unsigned Column = Offset - LastLineStart + 1;
                     std::cout << "  at line " << Line << ", column " << Column << std::endl;
                 }
@@ -75,10 +75,10 @@ int main(int argc, char *argv[]) {
 
     // Set up source manager
     swift::SourceManager sourceMgr;
-    
+
     // Set up diagnostic engine with custom consumer
     auto diagConsumer = std::make_unique<MyDiagnosticConsumer>();
-    MyDiagnosticConsumer* diagConsumerPtr = diagConsumer.get(); // Keep a pointer for later use
+    MyDiagnosticConsumer *diagConsumerPtr = diagConsumer.get(); // Keep a pointer for later use
     swift::DiagnosticEngine diagEngine(sourceMgr);
     diagEngine.addConsumer(std::move(diagConsumer));
 
@@ -95,9 +95,9 @@ int main(int argc, char *argv[]) {
     // Create the lexer with default options
     swift::LangOptions langOpts;
     swift::Lexer lexer(langOpts, sourceMgr, bufferID, &diagEngine,
-                      swift::LexerMode::Swift,
-                      swift::HashbangMode::Allowed,
-                      swift::CommentRetentionMode::ReturnAsTokens);
+                       swift::LexerMode::Swift,
+                       swift::HashbangMode::Allowed,
+                       swift::CommentRetentionMode::ReturnAsTokens);
 
     // Tokenize the input
     int tokenCount = 0;
@@ -107,14 +107,14 @@ int main(int argc, char *argv[]) {
     try {
         do {
             lexer.lex(token);
-            
+
             // Store token if it's valid
             if (token.getKind() != swift::tok::NUM_TOKENS) {
                 tokens.push_back(token);
                 tokenCount++;
             }
         } while (token.isNot(swift::tok::eof));
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "Exception during lexing: " << e.what() << std::endl;
         return 1;
     } catch (...) {
@@ -132,17 +132,17 @@ int main(int argc, char *argv[]) {
         std::cout << "-------------------" << std::endl;
         std::cout << "Lexing successful! Found " << tokenCount << " tokens:" << std::endl;
         std::cout << "-------------------" << std::endl;
-        
+
         // Only print first 50 tokens to avoid overwhelming output
         const size_t MAX_TOKENS_TO_PRINT = 50;
         const size_t tokensToPrint = std::min(tokens.size(), MAX_TOKENS_TO_PRINT);
-        
+
         // Print tokens
         for (size_t i = 0; i < tokensToPrint; i++) {
-            const auto& tok = tokens[i];
-            
-            std::cout << "Token " << i+1 << ": Kind=" << static_cast<int>(tok.getKind());
-            
+            const auto &tok = tokens[i];
+
+            std::cout << "Token " << i + 1 << ": Kind=" << static_cast<int>(tok.getKind());
+
             // Print token text if possible, but check text size first
             llvm::StringRef text = tok.getText();
             if (!text.empty()) {
@@ -160,10 +160,10 @@ int main(int argc, char *argv[]) {
                 }
                 std::cout << ", Text=\"" << tokenText << "\"";
             }
-            
+
             std::cout << std::endl;
         }
-        
+
         if (tokens.size() > MAX_TOKENS_TO_PRINT) {
             std::cout << "... and " << (tokens.size() - MAX_TOKENS_TO_PRINT) << " more tokens" << std::endl;
         }

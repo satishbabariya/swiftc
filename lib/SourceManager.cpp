@@ -17,8 +17,8 @@ using namespace swift;
  * Initializes the file system to use the real file system.
  */
 SourceManager::SourceManager() {
-    // Use the current directory as the working directory.
-    FileSystem = llvm::vfs::getRealFileSystem();
+  // Use the current directory as the working directory.
+  FileSystem = llvm::vfs::getRealFileSystem();
 }
 
 /**
@@ -99,7 +99,7 @@ const llvm::MemoryBuffer *SourceManager::getMemoryBuffer(unsigned BufferID) cons
  */
 SourceLocation SourceManager::getLocForBufferStart(unsigned BufferID) const {
   return SourceLocation(llvm::SMLoc::getFromPointer(
-      LLVMSourceMgr.getMemoryBuffer(BufferID)->getBufferStart()));
+    LLVMSourceMgr.getMemoryBuffer(BufferID)->getBufferStart()));
 }
 
 /**
@@ -115,7 +115,7 @@ unsigned SourceManager::findBufferContainingLoc(SourceLocation Loc) const {
   // Search through all the buffers to find which one contains this location.
   for (unsigned i = 1, e = LLVMSourceMgr.getNumBuffers() + 1; i != e; ++i) {
     if (auto *Buffer = LLVMSourceMgr.getMemoryBuffer(i); Buffer->getBufferStart() <= Loc.Value.getPointer() &&
-                                                       Loc.Value.getPointer() <= Buffer->getBufferEnd()) {
+                                                         Loc.Value.getPointer() <= Buffer->getBufferEnd()) {
       return i;
     }
   }
@@ -138,7 +138,7 @@ unsigned SourceManager::getLocOffsetInBuffer(SourceLocation Loc, unsigned Buffer
 
   // Check that the location is actually within the specified buffer.
   assert(BufferStart.Value.getPointer() <= Loc.Value.getPointer() &&
-         "Location is not from the specified buffer");
+    "Location is not from the specified buffer");
 
   // Return the difference.
   return Loc.Value.getPointer() - BufferStart.Value.getPointer();

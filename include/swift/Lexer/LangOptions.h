@@ -8,8 +8,6 @@
 #include "llvm/TargetParser/Triple.h"
 
 namespace swift {
-
-
     /// A collection of options that affect the language dialect and
     /// provide compiler debugging facilities.
     class LangOptions final {
@@ -29,7 +27,6 @@ namespace swift {
         /// performed.
         std::optional<llvm::Triple> TargetVariant;
     };
-
-    } // namespace swift
+} // namespace swift
 
 #endif //LANGOPTIONS_H

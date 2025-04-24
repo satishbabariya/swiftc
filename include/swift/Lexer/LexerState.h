@@ -11,7 +11,8 @@ namespace swift {
     /// Lexer state can be saved/restored to/from objects of this class.
     class LexerState {
     public:
-        LexerState() {}
+        LexerState() {
+        }
 
         bool isValid() const { return Loc.isValid(); }
 
@@ -21,7 +22,9 @@ namespace swift {
         }
 
     private:
-        explicit LexerState(SourceLocation Loc) : Loc(Loc) {}
+        explicit LexerState(SourceLocation Loc) : Loc(Loc) {
+        }
+
         SourceLocation Loc;
         friend class Lexer;
     };

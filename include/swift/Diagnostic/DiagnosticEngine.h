@@ -21,10 +21,10 @@ namespace swift {
      * @brief Represents the severity level of a diagnostic.
      */
     enum class DiagnosticSeverity {
-        Error,    ///< An error that prevents compilation from succeeding
-        Warning,  ///< A warning about potentially problematic code
-        Note,     ///< Additional information about a previous diagnostic
-        Remark    ///< Informational remark not indicating a problem
+        Error, ///< An error that prevents compilation from succeeding
+        Warning, ///< A warning about potentially problematic code
+        Note, ///< Additional information about a previous diagnostic
+        Remark ///< Informational remark not indicating a problem
     };
 
     /**
@@ -35,10 +35,10 @@ namespace swift {
     public:
         /// The severity level of this diagnostic
         DiagnosticSeverity Severity;
-        
+
         /// Source location where the diagnostic occurred
         SourceLocation Location;
-        
+
         /// The diagnostic message
         std::string Message;
 
@@ -49,7 +49,8 @@ namespace swift {
          * @param Message The diagnostic message text
          */
         Diagnostic(DiagnosticSeverity Severity, SourceLocation Location, std::string Message)
-            : Severity(Severity), Location(Location), Message(std::move(Message)) {}
+            : Severity(Severity), Location(Location), Message(std::move(Message)) {
+        }
     };
 
     /**
@@ -151,19 +152,19 @@ namespace swift {
     private:
         /// The source manager used for location information
         const SourceManager &SM;
-        
+
         /// The list of diagnostic consumers
-        std::vector<std::unique_ptr<DiagnosticConsumer>> Consumers;
-        
+        std::vector<std::unique_ptr<DiagnosticConsumer> > Consumers;
+
         /// Count of error diagnostics
         unsigned NumErrors = 0;
-        
+
         /// Count of warning diagnostics
         unsigned NumWarnings = 0;
-        
+
         /// Count of note diagnostics
         unsigned NumNotes = 0;
-        
+
         /// Count of remark diagnostics
         unsigned NumRemarks = 0;
 
@@ -180,14 +181,15 @@ namespace swift {
 
     public:
         explicit DiagnosticQueue(DiagnosticEngine &engine, bool emitOnDestruction = true)
-          : Engine(engine) {}
+            : Engine(engine) {
+        }
 
         void diagnose(const Diagnostic &diag) {
             Diagnostics.push_back(diag);
         }
 
         void emit() {
-            for (const auto &diag : Diagnostics) {
+            for (const auto &diag: Diagnostics) {
                 // Engine.diagnose(diag);
                 // TODO: Implement the actual emission logic
             }
@@ -201,7 +203,6 @@ namespace swift {
             Diagnostics.clear();
         }
     };
-
 } // namespace swift
 
 #endif // SWIFT_DIAGNOSTIC_DIAGNOSTICENGINE_H

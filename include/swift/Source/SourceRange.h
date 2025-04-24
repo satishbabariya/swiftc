@@ -23,7 +23,7 @@ namespace swift {
     public:
         /// The starting location of the range
         SourceLocation Start;
-        
+
         /// The ending location of the range
         SourceLocation End;
 
@@ -54,7 +54,7 @@ namespace swift {
          * @return True if the range is valid
          */
         [[nodiscard]] bool isValid() const { return Start.isValid(); }
-        
+
         /**
          * @brief Checks if this range is invalid.
          * @return True if the range is invalid

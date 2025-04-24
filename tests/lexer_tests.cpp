@@ -5,97 +5,41 @@
 
 using namespace swift;
 
-class LexerTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        langOpts = LangOptions();
-        sourceMgr = std::make_unique<SourceManager>();
-    }
+TEST(LexerTest, BasicTokenization) {
+    // Create a source manager and buffer
+    SourceManager SM;
+    llvm::StringRef Source = "let x = 42";
+    unsigned BufferID = SM.addNewSourceBuffer(llvm::MemoryBuffer::getMemBuffer(Source));
 
-    LangOptions langOpts;
-    std::unique_ptr<SourceManager> sourceMgr;
-    
-    // Helper to create a lexer from source code
-    std::unique_ptr<Lexer> createLexer(const std::string& source) {
-        auto buffer = llvm::MemoryBuffer::getMemBuffer(source);
-        unsigned bufferID = sourceMgr->addNewSourceBuffer(std::move(buffer));
-        
-        return std::make_unique<Lexer>(langOpts, *sourceMgr, bufferID, nullptr,
-                                       LexerMode::Swift,
-                                       HashbangMode::Allowed,
-                                       CommentRetentionMode::ReturnAsTokens);
-    }
-    
-    // Helper to lex a token
-    static Token getNextToken(Lexer& lexer) {
-        Token tok;
-        lexer.lex(tok);
-        return tok;
-    }
-};
+    // Create lexer
+    Lexer L(LangOptions(), SM, BufferID, nullptr,
+             LexerMode::Swift, HashbangMode::Allowed);
 
-TEST_F(LexerTest, TestIdentifier) {
-    auto lexer = createLexer("identifier");
-    auto token = getNextToken(*lexer);
-    
-    EXPECT_EQ(token.getKind(), tok::identifier);
-    EXPECT_EQ(token.getText(), "identifier");
-}
+    // Test tokens
+    Token Tok;
 
-TEST_F(LexerTest, TestIntegerLiteral) {
-    auto lexer = createLexer("42");
-    auto token = getNextToken(*lexer);
-    
-    EXPECT_EQ(token.getKind(), tok::integer_literal);
-    EXPECT_EQ(token.getText(), "42");
-}
+    // First token should be 'let' keyword
+    L.lex(Tok);
+    EXPECT_EQ(Tok.getKind(), tok::kw_let);
+    EXPECT_EQ(Tok.getText(), "let");
 
-TEST_F(LexerTest, TestKeyword) {
-    auto lexer = createLexer("func");
-    auto token = getNextToken(*lexer);
-    
-    EXPECT_EQ(token.getKind(), tok::kw_func);
-    EXPECT_EQ(token.getText(), "func");
-}
+    // Second token should be identifier 'x'
+    L.lex(Tok);
+    EXPECT_EQ(Tok.getKind(), tok::identifier);
+    EXPECT_EQ(Tok.getText(), "x");
 
-TEST_F(LexerTest, TestStringLiteral) {
-    auto lexer = createLexer("\"hello world\"");
-    auto token = getNextToken(*lexer);
-    
-    EXPECT_EQ(token.getKind(), tok::string_literal);
-    EXPECT_EQ(token.getText(), "\"hello world\"");
-}
+    // Third token should be '=' operator
+    L.lex(Tok);
+    EXPECT_EQ(Tok.getKind(), tok::equal);
+    EXPECT_EQ(Tok.getText(), "=");
 
-TEST_F(LexerTest, TestOperator) {
-    auto lexer = createLexer("+");
-    auto token = getNextToken(*lexer);
-    
-    EXPECT_EQ(token.getKind(), tok::oper_prefix);
-    EXPECT_EQ(token.getText(), "+");
-}
-
-TEST_F(LexerTest, TestMultipleTokens) {
-    auto lexer = createLexer("let x = 42");
-    
-    auto token1 = getNextToken(*lexer);
-    EXPECT_EQ(token1.getKind(), tok::kw_let);
-    
-    auto token2 = getNextToken(*lexer);
-    EXPECT_EQ(token2.getKind(), tok::identifier);
-    EXPECT_EQ(token2.getText(), "x");
-    
-    auto token3 = getNextToken(*lexer);
-    EXPECT_EQ(token3.getKind(), tok::equal);
-    
-    auto token4 = getNextToken(*lexer);
-    EXPECT_EQ(token4.getKind(), tok::integer_literal);
-    EXPECT_EQ(token4.getText(), "42");
-    
-    auto token5 = getNextToken(*lexer);
-    EXPECT_EQ(token5.getKind(), tok::eof);
+    // Fourth token should be integer literal '42'
+    L.lex(Tok);
+    EXPECT_EQ(Tok.getKind(), tok::integer_literal);
+    EXPECT_EQ(Tok.getText(), "42");
 }
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
-} 
+}

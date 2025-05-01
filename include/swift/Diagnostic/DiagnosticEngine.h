@@ -189,9 +189,22 @@ namespace swift {
         }
 
         void emit() {
-            for (const auto &diag: Diagnostics) {
-                // Engine.diagnose(diag);
-                // TODO: Implement the actual emission logic
+            for (const auto &diag : Diagnostics) {
+                // Re-emit through the engine so counters and consumers are updated.
+                switch (diag.Severity) {
+                case DiagnosticSeverity::Error:
+                    Engine.error(diag.Location, diag.Message);
+                    break;
+                case DiagnosticSeverity::Warning:
+                    Engine.warning(diag.Location, diag.Message);
+                    break;
+                case DiagnosticSeverity::Note:
+                    Engine.note(diag.Location, diag.Message);
+                    break;
+                case DiagnosticSeverity::Remark:
+                    Engine.remark(diag.Location, diag.Message);
+                    break;
+                }
             }
             Diagnostics.clear();
         }

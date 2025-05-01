@@ -251,6 +251,6 @@ namespace swift {
 
     return true;
   }
-} // end namespace clang
+} // end namespace swift
 
 #endif

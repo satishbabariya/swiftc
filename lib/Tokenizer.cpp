@@ -115,12 +115,14 @@ static void getStringPartTokens(const Token &Tok, const LangOptions &LangOpts,
         Toks.push_back(NewTok);
       }
 
-      std::vector<Token> NewTokens = swift::tokenize(LangOpts, SM, BufID,
-                                                     Offset, EndOffset,
-                                                     /*Diags=*/nullptr,
-                                                     /*KeepComments=*/true);
+      std::vector<Token> NewTokens = swift::tokenize(
+          LangOpts, SM, BufID,
+          Offset, EndOffset,
+          /*Diags=*/nullptr,
+          /*KeepComments=*/true,
+          /*TokenizeInterpolatedString=*/false,
+          /*SplitTokens=*/{});
       Toks.insert(Toks.end(), NewTokens.begin(), NewTokens.end());
-
       if (isLast) {
         // Add a token for the quote character.
         llvm::StringRef Text = SM.extractText({ Seg.Loc.getAdvancedLoc(Seg.Length),

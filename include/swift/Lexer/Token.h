@@ -320,15 +320,16 @@ namespace swift {
     void setText(llvm::StringRef T) { Text = T; }
 
     /// Set the token to the specified kind and source range.
-    void setToken(tok K, llvm::StringRef T, unsigned CommentLength = 0) {
+    void setToken(tok K, llvm::StringRef T,
+                  unsigned CommentLength = 0,
+                  unsigned RawDelimiterLen = 0) {
       Kind = K;
       Text = T;
       this->CommentLength = CommentLength;
       EscapedIdentifier = false;
       this->MultilineString = false;
-      this->CustomDelimiterLen = 0;
-      assert(this->CustomDelimiterLen == CustomDelimiterLen &&
-        "custom string delimiter length > 255");
+      assert(RawDelimiterLen <= 255 && "custom string delimiter length > 255");
+      this->CustomDelimiterLen = RawDelimiterLen;
     }
   };
 }

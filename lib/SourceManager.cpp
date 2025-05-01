@@ -61,7 +61,9 @@ unsigned SourceManager::getOrOpenBuffer(llvm::StringRef FilePath) {
   // Otherwise, create and add the buffer.
   auto FileOrErr = FileSystem->getBufferForFile(FilePath);
   if (!FileOrErr) {
-    // Return an invalid BufferID on error.
+    // Surface the underlying error instead of silently returning an invalid ID.
+    llvm::errs() << "Could not open file '" << FilePath
+                 << "': " << FileOrErr.getError().message() << '\n';
     return ~0U;
   }
 

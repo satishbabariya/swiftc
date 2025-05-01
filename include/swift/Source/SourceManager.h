@@ -53,7 +53,7 @@ namespace swift {
          * If the buffer cannot be read, or already exists with different contents,
          * this returns ~0U.
          */
-        unsigned getOrOpenBuffer(llvm::StringRef FilePath);
+        std::optional<unsigned> getOrOpenBuffer(llvm::StringRef FilePath);
 
         /**
          * @brief Returns the buffer ID for an existing buffer if it exists.

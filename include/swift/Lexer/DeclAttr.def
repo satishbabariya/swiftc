@@ -62,7 +62,8 @@
 // Please keep entries in serialization code order. If you remove an entry,
 // leave an "Unused 'NNN'" comment so the unused code is obvious.
 DECL_ATTR(_silgen_name, SILGenName,
-  OnAbstractFunction | OnVar,
+-  OnAbstractFunction | OnVar,
++  OnAbstractFunction,
   LongAttribute | UserInaccessible | ABIStableToAdd | ABIStableToRemove | APIStableToAdd | APIStableToRemove | ForbiddenInABIAttr,
   0)
 

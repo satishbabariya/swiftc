@@ -27,7 +27,9 @@ public:
                                 llvm::ArrayRef<tok> ExpectedTokens,
                                 bool KeepComments = false,
                                 const bool KeepEOF = false) {
-        const unsigned BufID = SourceMgr.addMemBufferCopy(llvm::MemoryBuffer::getMemBuffer(Source).get());
+        // The SourceManager makes an internal copy, no need to build a
+        // MemoryBuffer ourselves.
+        const unsigned BufID = SourceMgr.addMemBufferCopy(Source);
 
         std::vector<Token> tokens;
         if (KeepEOF)

@@ -270,6 +270,7 @@ namespace swift {
     void setStringLiteral(bool IsMultilineString, unsigned CustomDelimiterLen) {
       assert(Kind == tok::string_literal);
       this->MultilineString = IsMultilineString;
+      assert(CustomDelimiterLen <= 255 && "custom string delimiter length > 255");
       this->CustomDelimiterLen = CustomDelimiterLen;
     }
 

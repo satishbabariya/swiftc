@@ -35,9 +35,15 @@ public:
         if (KeepEOF)
             tokens = tokenizeAndKeepEOF(BufID);
         else
-            // FIXME: This is a placeholder for the actual tokenization logic in parser
             // tokens = tokenize(LangOpts, SourceMgr, BufID, 0, 0, /*Diags=*/nullptr, KeepComments);
-            exit(1);
+            else {
+                tokens = swift::tokenize(LangOpts, SourceMgr, BufID,
+                                         /*Offset=*/0, /*EndOffset=*/0,
+                                         /*Diags=*/nullptr,
+                                         /*KeepComments=*/KeepComments,
+                                         /*TokenizeInterpolatedString=*/false,
+                                         /*SplitTokens=*/{});
+            }
         EXPECT_EQ(ExpectedTokens.size(), tokens.size());
         for (unsigned i = 0, e = ExpectedTokens.size(); i != e; ++i) {
             EXPECT_EQ(ExpectedTokens[i], tokens[i].getKind()) << "i = " << i;

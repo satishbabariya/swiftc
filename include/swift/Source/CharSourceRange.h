@@ -48,12 +48,14 @@ namespace swift {
          * Start and end must either both be valid or both be invalid.
          */
         CharSourceRange(SourceLocation Start, SourceLocation End)
-            : Start(Start), Length(End.isValid()
-                                       ? End.Value.getPointer() -
-                                         Start.Value.getPointer()
-                                       : 0) {
+            : Start(Start) {
             assert(Start.isValid() == End.isValid() &&
                 "Start and end should either both be valid or both be invalid!");
+            // Ensure forward progress before computing the distance.
+            assert(!Start.isValid() || Start.getOpaquePointerValue() <= End.getOpaquePointerValue()
+                   && "CharSourceRange requires Start <= End");
+            Length = End.isValid() ? static_cast<unsigned>(
+                End.Value.getPointer() - Start.Value.getPointer()) : 0;
         }
 
         /**

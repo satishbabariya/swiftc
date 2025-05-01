@@ -55,8 +55,8 @@ namespace swift {
             CHAR_PUNCT, CHAR_PUNCT, CHAR_PUNCT, CHAR_UNDER,
             //96  `         97  a         98  b         99  c
             //100  d       101  e        102  f        103  g
-            CHAR_PUNCT, CHAR_XLOWER, CHAR_XLOWER, CHAR_XLOWER,
-            CHAR_XLOWER, CHAR_XLOWER, CHAR_XLOWER, CHAR_LOWER,
+            CHAR_PUNCT, CHAR_LOWER|CHAR_XLOWER, CHAR_LOWER|CHAR_XLOWER, CHAR_LOWER|CHAR_XLOWER,
+            CHAR_LOWER|CHAR_XLOWER, CHAR_LOWER|CHAR_XLOWER, CHAR_LOWER|CHAR_XLOWER, CHAR_LOWER,
             //104  h       105  i        106  j        107  k
             //108  l       109  m        110  n        111  o
             CHAR_LOWER, CHAR_LOWER, CHAR_LOWER, CHAR_LOWER,

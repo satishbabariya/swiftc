@@ -6,9 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_BASIC_CHARINFO_H
-#define LLVM_CLANG_BASIC_CHARINFO_H
-
+#ifndef SWIFT_LEXER_CHARINFO_H
+#define SWIFT_LEXER_CHARINFO_H
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
